@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat, Poppins } from "next/font/google";
+
+import { AppProviders } from "@/app/providers";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -30,7 +32,9 @@ export default function RootLayout({
       lang="fr"
       className={`${poppins.variable} ${montserrat.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

@@ -8,6 +8,6 @@ import { LandingPageView } from "@/features/landing";
  * - Nouveaux développeurs : suivre `features/landing/` pour toute évolution marketing.
  */
 
-export default function HomePage() {
+export default async function HomePage() {
   return <LandingPageView />;
 }

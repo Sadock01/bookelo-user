@@ -8,11 +8,12 @@ import type { StaticImageData } from "next/image";
  * - **I** (ISP) : les composants ne reçoivent que les données dont ils ont besoin (pas le modèle entier systématiquement).
  */
 
-/** Couverture affichée dans la grille « tendances » (données + image optimisable par next/image). */
+/** Couverture affichée dans la grille « tendances » (données + image locale ou URL API). */
 export type LandingStoryCover = {
   readonly id: string;
   readonly title: string;
-  readonly image: StaticImageData;
+  readonly image: StaticImageData | string;
+  readonly href?: string;
 };
 
 /** Bloc hero : message principal + visuel principal. */
@@ -49,6 +50,7 @@ export type LandingHeaderModel = {
 export type LandingTrendingModel = {
   readonly sectionTitle: string;
   readonly seeAllLabel: string;
+  readonly seeAllHref?: string;
   readonly stories: readonly LandingStoryCover[];
 };
 
@@ -58,9 +60,17 @@ export type LandingCommunityPromoModel = {
   readonly title: string;
   readonly body: string;
   readonly ctaLabel: string;
+  readonly ctaHref?: string;
   readonly stories: readonly LandingStoryCover[];
   readonly decorationImage: StaticImageData;
   readonly decorationAlt: string;
+};
+
+export type LandingAdBanner = {
+  readonly id: string;
+  readonly title?: string;
+  readonly imageUrl?: string;
+  readonly linkUrl?: string;
 };
 
 export type LandingAuthorBannerModel = {
@@ -75,6 +85,7 @@ export type LandingAuthorBannerModel = {
 export type LandingCategoryTag = {
   readonly id: string;
   readonly label: string;
+  readonly slug: string;
 };
 
 /** Bloc « domaines IT » : pastilles cliquables (futurs filtres catalogue). */
@@ -112,4 +123,5 @@ export type LandingPageModel = {
   readonly categories: LandingCategoriesModel;
   readonly authorBanner: LandingAuthorBannerModel;
   readonly footer: LandingFooterModel;
+  readonly ads: readonly LandingAdBanner[];
 };

@@ -1,21 +1,24 @@
 /**
- * Fabrique du modèle de la landing (couche données / présentation).
- *
- * À terme vous pouvez remplacer cette fonction par :
- * - un fetch CMS,
- * - des traductions (i18n),
- * sans modifier les composants visuels (principe **D** du SOLID — dépendre d’abstractions).
+ * Fabrique du modèle de la landing — textes statiques + données catalogue API (sans auth).
  */
 
-import type { LandingPageModel } from "@/features/landing/types/landing-page.types";
+import { getAds } from "@/lib/api/ads";
+import { hasApiBaseUrl } from "@/lib/api/config";
+import { getLatestBooks, getMostReadBooks } from "@/lib/api/books";
+import { getCategories } from "@/lib/api/categories";
+
+import {
+  mapBooksToLandingStories,
+  mapCategoryToLandingTag,
+} from "@/features/landing/data/map-api-to-landing";
+import type { LandingPageModel, LandingStoryCover } from "@/features/landing/types/landing-page.types";
 
 import { landingAssets } from "./landing-assets";
 
-export function getLandingPageModel(): LandingPageModel {
-  const { logoIcon, heroArtwork, lisseArtwork, promoVisual, bannerVisual, lastTemp, trendingCovers } =
-    landingAssets;
+function buildStaticStories(): readonly LandingStoryCover[] {
+  const { promoVisual, bannerVisual, lastTemp, trendingCovers } = landingAssets;
 
-  const trendingStories = [
+  return [
     {
       id: "security-plus",
       title: "CompTIA Security+ — Préparation complète",
@@ -41,8 +44,20 @@ export function getLandingPageModel(): LandingPageModel {
       title: "Cloud & DevOps — Certification & mise en pratique",
       image: lastTemp,
     },
-  ] as const;
+  ];
+}
 
+function buildStaticModel(): LandingPageModel {
+  const {
+    logoIcon,
+    heroArtwork,
+    lisseArtwork,
+    promoVisual,
+    bannerVisual,
+    lastTemp,
+  } = landingAssets;
+
+  const trendingStories = buildStaticStories();
   const spotlightStories = trendingStories.slice(0, 4);
 
   return {
@@ -51,7 +66,7 @@ export function getLandingPageModel(): LandingPageModel {
       logo: logoIcon,
       logoAlt: "Logo Bookelo",
       navItems: [
-        { label: "Parcourir", href: "#parcours", hasDropdown: true },
+        { label: "Parcourir", href: "/books", hasDropdown: true },
         { label: "Communauté", href: "#communaute", hasDropdown: true },
       ],
       searchPlaceholder: "Security+, Python, Cisco…",
@@ -73,6 +88,7 @@ export function getLandingPageModel(): LandingPageModel {
     trending: {
       sectionTitle: "Les parcours les plus consultés",
       seeAllLabel: "Tout afficher",
+      seeAllHref: "/books",
       stories: [...trendingStories],
     },
     communityPromo: {
@@ -80,6 +96,7 @@ export function getLandingPageModel(): LandingPageModel {
       title: "Préparez votre certification avec des contenus structurés pour le monde réel.",
       body: "Sécurité offensive et défensive, programmation, réseaux : des supports pensés pour vous projeter dans les scénarios d'examen et les environnements professionnels.",
       ctaLabel: "Explorer les contenus",
+      ctaHref: "/books",
       stories: [...spotlightStories],
       decorationImage: promoVisual,
       decorationAlt: "Visuel pédagogique Bookelo",
@@ -91,14 +108,14 @@ export function getLandingPageModel(): LandingPageModel {
       illustration: lisseArtwork,
       illustrationAlt: "Exploration des domaines IT sur Bookelo",
       tags: [
-        { id: "secplus", label: "CompTIA Security+" },
-        { id: "cisco", label: "Cisco / CCNA" },
-        { id: "python", label: "Python & scripting" },
-        { id: "cyberdef", label: "Cybersécurité défensive" },
-        { id: "iam", label: "IAM & identité" },
-        { id: "cloud", label: "Cloud & DevOps" },
-        { id: "pentest", label: "Pentest & ethical hacking" },
-        { id: "prog", label: "Programmation générale" },
+        { id: "secplus", label: "CompTIA Security+", slug: "security" },
+        { id: "cisco", label: "Cisco / CCNA", slug: "cisco" },
+        { id: "python", label: "Python & scripting", slug: "python" },
+        { id: "cyberdef", label: "Cybersécurité défensive", slug: "cyberdef" },
+        { id: "iam", label: "IAM & identité", slug: "iam" },
+        { id: "cloud", label: "Cloud & DevOps", slug: "cloud" },
+        { id: "pentest", label: "Pentest & ethical hacking", slug: "pentest" },
+        { id: "prog", label: "Programmation générale", slug: "programmation" },
       ],
     },
     authorBanner: {
@@ -113,7 +130,7 @@ export function getLandingPageModel(): LandingPageModel {
       showcaseImage: lastTemp,
       showcaseAlt: "Univers visuel Bookelo",
       links: [
-        { id: "catalogue", label: "Parcours certifiants", href: "#" },
+        { id: "catalogue", label: "Parcours certifiants", href: "/books" },
         { id: "app", label: "Télécharger l'application", href: "#" },
         { id: "partenaires", label: "Partenariats", href: "#" },
         { id: "carriere", label: "Carrières", href: "#" },
@@ -124,5 +141,48 @@ export function getLandingPageModel(): LandingPageModel {
       ],
       copyright: "© 2026 Bookelo",
     },
+    ads: [],
   };
+}
+
+export async function getLandingPageModel(): Promise<LandingPageModel> {
+  const model = buildStaticModel();
+
+  if (!hasApiBaseUrl()) {
+    return model;
+  }
+
+  try {
+    const [mostRead, latest, categories, ads] = await Promise.all([
+      getMostReadBooks(5),
+      getLatestBooks(),
+      getCategories(),
+      getAds("landing_header").catch(() => []),
+    ]);
+
+    const trendingFromApi = mostRead.length > 0 ? mapBooksToLandingStories(mostRead) : null;
+    const promoFromApi =
+      latest.length > 0 ? mapBooksToLandingStories(latest.slice(0, 4)) : null;
+    const tagsFromApi =
+      categories.length > 0 ? categories.map(mapCategoryToLandingTag) : null;
+
+    return {
+      ...model,
+      trending: {
+        ...model.trending,
+        stories: trendingFromApi ?? model.trending.stories,
+      },
+      communityPromo: {
+        ...model.communityPromo,
+        stories: promoFromApi ?? model.communityPromo.stories,
+      },
+      categories: {
+        ...model.categories,
+        tags: tagsFromApi ?? model.categories.tags,
+      },
+      ads,
+    };
+  } catch {
+    return model;
+  }
 }
